@@ -61,6 +61,11 @@ if [ -n "$TARGET_TRIPLES" ]; then
     done
 fi
 
+if [ -z "$ARCHS" ]; then
+    echo "No mingw32 libraries will be built"
+    exit 0;
+fi
+
 if [ ! -d mingw-w64 ] || [ -n "$SYNC" ]; then
     CHECKOUT_ONLY=1 ./build-mingw-w64.sh
 fi

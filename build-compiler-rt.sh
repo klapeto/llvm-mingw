@@ -75,6 +75,17 @@ for arch in $ARCHS; do
     esac
 done
 
+for target_triple in $TARGET_TRIPLES; do
+    case $target_triple in
+    *-linux-gnu*);;
+    *-w64-mingw32*);;
+    *)
+        echo "Invalid target triple: $target_triple"
+        exit 1
+        ;;
+    esac
+done
+
 CLANG_RESOURCE_DIR="$("$PREFIX/bin/clang" --print-resource-dir)"
 
 if [ ! -d llvm-project/compiler-rt ] || [ -n "$SYNC" ]; then

@@ -77,6 +77,11 @@ if [ -n "$TARGET_TRIPLES" ]; then
     done
 fi
 
+if [ -z "$ARCHS" ]; then
+    echo "No mingw32 tools will be built"
+    exit 0;
+fi
+
 if [ -n "$HOST" ]; then
     CONFIGFLAGS="$CONFIGFLAGS --host=$HOST"
     CROSS_NAME=-$HOST

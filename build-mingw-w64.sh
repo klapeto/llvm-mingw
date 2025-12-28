@@ -104,6 +104,11 @@ if [ -n "$TARGET_TRIPLES" ]; then
     done
 fi
 
+if [ -z "$ARCHS" ]; then
+    echo "No mingw32 will be built"
+    exit 0;
+fi
+
 if [ -z "$SKIP_INCLUDE_TRIPLET_PREFIX" ]; then
     HEADER_ROOT="$PREFIX/generic-w64-mingw32"
 else
