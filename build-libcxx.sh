@@ -49,9 +49,13 @@ PREFIX="$(cd "$PREFIX" && pwd)"
 export PATH="$PREFIX/bin:$PATH"
 
 : ${ARCHS:=${TOOLCHAIN_ARCHS-i686 x86_64 armv7 aarch64 arm64ec}}
-: ${TARGET_TRIPLES:=${TARGET_TRIPLES-i686-w64-mingw32 x86_64-w64-mingw32 armv7-w64-mingw32 aarch64-w64-mingw32 arm64ec-w64-mingw32 }}
 
-# for backwards compatibility
+if [ -n "$TARGET_TRIPLES" ]; then
+    # using Triples, bypasses normal defaults
+    ARCHS=""
+fi
+
+# append ARCHS if not reset
 for arch in $ARCHS; do
     case $TARGET_TRIPLES in
         *$arch-w64-mingw32*) ;;

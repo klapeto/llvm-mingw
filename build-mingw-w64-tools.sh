@@ -59,6 +59,24 @@ fi
 : ${ARCHS:=${TOOLCHAIN_ARCHS-i686 x86_64 armv7 aarch64 arm64ec}}
 : ${TARGET_OSES:=${TOOLCHAIN_TARGET_OSES-mingw32 mingw32uwp}}
 
+if [ -n "$TARGET_TRIPLES" ]; then
+    # using Triples, bypasses normal defaults
+    ARCHS=""
+    TARGET_OSES=""
+    # append to ARCHS
+    for target_triple in $TARGET_TRIPLES; do
+        case $target_triple in
+        *-w64-mingw32*)
+            target_arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
+            target_os=$(expr match "$target_triple" '.*-.*-\(.*\)')
+            ARCHS="$ARCHS $target_arch"
+            TARGET_OSES="$TARGET_OSES $target_os"
+        ;;
+        *);;
+        esac
+    done
+fi
+
 if [ -n "$HOST" ]; then
     CONFIGFLAGS="$CONFIGFLAGS --host=$HOST"
     CROSS_NAME=-$HOST

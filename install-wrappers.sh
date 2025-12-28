@@ -36,17 +36,23 @@ while [ $# -gt 0 ]; do
     shift
 done
 if [ -z "$PREFIX" ]; then
-    echo $0 [--host=triple] [--host-clang[=clang]] dest
+    echo "$0 [--host=triple] [--host-clang[=clang]] dest"
     exit 1
 fi
 mkdir -p "$PREFIX"
 PREFIX="$(cd "$PREFIX" && pwd)"
 
+
 : ${ARCHS:=${TOOLCHAIN_ARCHS-i686 x86_64 armv7 aarch64 arm64ec}}
 : ${TARGET_OSES:=${TOOLCHAIN_TARGET_OSES-mingw32 mingw32uwp}}
-: ${TARGET_TRIPLES:=${TARGET_TRIPLES-i686-w64-mingw32 x86_64-w64-mingw32 armv7-w64-mingw32 arm64ec-w64-mingw32 aarch64-w64-mingw32 i686-w64-mingw32uwp x86_64-w64-mingw32uwp armv7-w64-mingw32uwp arm64ec-w64-mingw32uwp aarch64-w64-mingw32uwp}}
 
-# for backwards compatibility
+if [ -n "$TARGET_TRIPLES" ]; then
+    # using Triples, bypasses normal defaults
+    ARCHS=""
+    TARGET_OSES=""
+fi
+
+# append ARCHS/OSes if not reset
 for arch in $ARCHS; do
     for os in $TARGET_OSES; do
         case $TARGET_TRIPLES in

@@ -46,6 +46,21 @@ unset CC
 : ${CORES:=4}
 : ${ARCHS:=${TOOLCHAIN_ARCHS-i686 x86_64 armv7 aarch64 arm64ec}}
 
+if [ -n "$TARGET_TRIPLES" ]; then
+    # using Triples, bypasses normal defaults
+    ARCHS=""
+    # append to ARCHS
+    for target_triple in $TARGET_TRIPLES; do
+        case $target_triple in
+        *-w64-mingw32*)
+            target_arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
+            ARCHS="$ARCHS $target_arch"
+        ;;
+        *);;
+        esac
+    done
+fi
+
 if [ ! -d mingw-w64 ] || [ -n "$SYNC" ]; then
     CHECKOUT_ONLY=1 ./build-mingw-w64.sh
 fi
