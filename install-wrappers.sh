@@ -44,6 +44,17 @@ PREFIX="$(cd "$PREFIX" && pwd)"
 
 : ${ARCHS:=${TOOLCHAIN_ARCHS-i686 x86_64 armv7 aarch64 arm64ec}}
 : ${TARGET_OSES:=${TOOLCHAIN_TARGET_OSES-mingw32 mingw32uwp}}
+: ${TARGET_TRIPLES:=${TARGET_TRIPLES-i686-w64-mingw32 x86_64-w64-mingw32 armv7-w64-mingw32 arm64ec-w64-mingw32 aarch64-w64-mingw32 i686-w64-mingw32uwp x86_64-w64-mingw32uwp armv7-w64-mingw32uwp arm64ec-w64-mingw32uwp aarch64-w64-mingw32uwp}}
+
+# for backwards compatibility
+for arch in $ARCHS; do
+    for os in $TARGET_OSES; do
+        case $TARGET_TRIPLES in
+            *$arch-w64-$os*) ;;
+            *) TARGET_TRIPLES="$TARGET_TRIPLES $arch-w64-$os" ;;
+        esac
+    done
+done
 
 if [ -n "$HOST" ] && [ -z "$CC" ]; then
     CC=$HOST-gcc
@@ -124,10 +135,23 @@ fi
 mkdir -p "$PREFIX/bin"
 cp wrappers/*-wrapper.sh "$PREFIX/bin"
 cp wrappers/mingw32-common.cfg $PREFIX/bin
-for arch in $ARCHS; do
-    cp wrappers/$arch-w64-windows-gnu.cfg $PREFIX/bin
-    # Also accept `--target=$arch-pc-windows-gnu` style arg
-    ln -sf $arch-w64-windows-gnu.cfg $PREFIX/bin/$arch-pc-windows-gnu.cfg
+for target_triple in $TARGET_TRIPLES; do
+    case $target_triple in
+    *-linux-gnu*)
+        arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
+        target_env=$(expr match "$target_triple" '.*-.*-\(.*\)')
+        cp wrappers/$arch-linux-$target_env.cfg $PREFIX/bin
+        # Also accept `--target=$arch-unknown-linux` style arg
+        ln -sf $arch-linux-$target_env.cfg $PREFIX/bin/$arch-unknown-linux-$target_env.cfg
+        ln -sf $arch-linux-$target_env.cfg $PREFIX/bin/$arch-pc-linux-$target_env.cfg
+        ;;
+    *-w64-mingw32*)
+        arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
+        cp wrappers/$arch-w64-windows-gnu.cfg $PREFIX/bin
+        # Also accept `--target=$arch-pc-windows-gnu` style arg
+        ln -sf $arch-w64-windows-gnu.cfg $PREFIX/bin/$arch-pc-windows-gnu.cfg
+        ;;
+    esac
 done
 if [ -n "$HOST" ] && [ -n "$EXEEXT" ]; then
     # TODO: If building natively on msys, pick up the default HOST value from there.
@@ -150,34 +174,32 @@ else
     CSDW=clang-scan-deps
 fi
 cd "$PREFIX/bin"
-for arch in $ARCHS; do
-    for target_os in $TARGET_OSES; do
-        for exec in clang clang++ gcc g++ c++ as; do
-            ln -sf clang-target-wrapper$CTW_SUFFIX $arch-w64-$target_os-$exec$CTW_LINK_SUFFIX
-        done
-        ln -sf $CSDW $arch-w64-$target_os-clang-scan-deps$CTW_LINK_SUFFIX
-        for exec in addr2line ar ranlib nm objcopy readelf size strings strip llvm-ar llvm-ranlib; do
-            if [ -n "$EXEEXT" ]; then
-                link_target=llvm-wrapper
-            else
-                case $exec in
-                llvm-*)
-                    link_target=$exec
-                    ;;
-                *)
-                    link_target=llvm-$exec
-                    ;;
-                esac
-            fi
-            ln -sf $link_target$EXEEXT $arch-w64-$target_os-$exec$EXEEXT || true
-        done
-        # windres and dlltool can't use llvm-wrapper, as that loses the original
-        # target arch prefix.
-        ln -sf llvm-windres$EXEEXT $arch-w64-$target_os-windres$EXEEXT
-        ln -sf llvm-dlltool$EXEEXT $arch-w64-$target_os-dlltool$EXEEXT
-        for exec in ld objdump; do
-            ln -sf $exec-wrapper.sh $arch-w64-$target_os-$exec
-        done
+for target_triple in $TARGET_TRIPLES; do
+    for exec in clang clang++ gcc g++ c++ as; do
+        ln -sf clang-target-wrapper$CTW_SUFFIX $target_triple-$exec$CTW_LINK_SUFFIX
+    done
+    ln -sf $CSDW $target_triple-clang-scan-deps$CTW_LINK_SUFFIX
+    for exec in addr2line ar ranlib nm objcopy readelf size strings strip llvm-ar llvm-ranlib; do
+        if [ -n "$EXEEXT" ]; then
+            link_target=llvm-wrapper
+        else
+            case $exec in
+            llvm-*)
+                link_target=$exec
+                ;;
+            *)
+                link_target=llvm-$exec
+                ;;
+            esac
+        fi
+        ln -sf $link_target$EXEEXT $target_triple-$exec$EXEEXT || true
+    done
+    # windres and dlltool can't use llvm-wrapper, as that loses the original
+    # target arch prefix.
+    ln -sf llvm-windres$EXEEXT $target_triple-windres$EXEEXT
+    ln -sf llvm-dlltool$EXEEXT $target_triple-dlltool$EXEEXT
+    for exec in ld objdump; do
+        ln -sf $exec-wrapper.sh $target_triple-$exec
     done
 done
 if [ -n "$EXEEXT" ]; then

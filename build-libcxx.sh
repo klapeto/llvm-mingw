@@ -49,6 +49,15 @@ PREFIX="$(cd "$PREFIX" && pwd)"
 export PATH="$PREFIX/bin:$PATH"
 
 : ${ARCHS:=${TOOLCHAIN_ARCHS-i686 x86_64 armv7 aarch64 arm64ec}}
+: ${TARGET_TRIPLES:=${TARGET_TRIPLES-i686-w64-mingw32 x86_64-w64-mingw32 armv7-w64-mingw32 aarch64-w64-mingw32 arm64ec-w64-mingw32 }}
+
+# for backwards compatibility
+for arch in $ARCHS; do
+    case $TARGET_TRIPLES in
+        *$arch-w64-mingw32*) ;;
+        *) TARGET_TRIPLES="$TARGET_TRIPLES $arch-w64-mingw32" ;;
+    esac
+done
 
 if [ ! -d llvm-project/libunwind ] || [ -n "$SYNC" ]; then
     CHECKOUT_ONLY=1 ./build-llvm.sh
@@ -72,19 +81,35 @@ else
     esac
 fi
 
-for arch in $ARCHS; do
-    [ -z "$CLEAN" ] || rm -rf build-$arch
-    mkdir -p build-$arch
-    cd build-$arch
+for target_triple in $TARGET_TRIPLES; do
+    [ -z "$CLEAN" ] || rm -rf build-$target_triple
+    mkdir -p build-$target_triple
+    cd build-$target_triple
     [ -n "$NO_RECONF" ] || rm -rf CMake*
+
+    target_arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
+    target_env=$(expr match "$target_triple" '.*-.*-\(.*\)')
+    case $target_triple in
+    *-linux-gnu*)
+        target_system=Linux
+        init_flags=""
+        compiler_target=$target_arch-linux-$target_env
+        ;;
+    *-w64-mingw32*)
+        target_system=Windows
+        init_flags=$CFGUARD_CFLAGS
+        compiler_target=$target_arch-w64-windows-gnu
+        ;;
+    esac
+
     cmake \
         ${CMAKE_GENERATOR+-G} "$CMAKE_GENERATOR" \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX/$arch-w64-mingw32" \
-        -DCMAKE_C_COMPILER=$arch-w64-mingw32-clang \
-        -DCMAKE_CXX_COMPILER=$arch-w64-mingw32-clang++ \
-        -DCMAKE_CXX_COMPILER_TARGET=$arch-w64-windows-gnu \
-        -DCMAKE_SYSTEM_NAME=Windows \
+        -DCMAKE_INSTALL_PREFIX="$PREFIX/$target_triple" \
+        -DCMAKE_C_COMPILER=$target_triple-clang \
+        -DCMAKE_CXX_COMPILER=$target_triple-clang++ \
+        -DCMAKE_CXX_COMPILER_TARGET=$compiler_target \
+        -DCMAKE_SYSTEM_NAME=$target_system \
         -DCMAKE_C_COMPILER_WORKS=TRUE \
         -DCMAKE_CXX_COMPILER_WORKS=TRUE \
         -DCMAKE_AR="$PREFIX/bin/llvm-ar" \
@@ -107,8 +132,8 @@ for arch in $ARCHS; do
         -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
         -DLIBCXXABI_ENABLE_SHARED=OFF \
         -DLIBCXXABI_LIBDIR_SUFFIX="" \
-        -DCMAKE_C_FLAGS_INIT="$CFGUARD_CFLAGS" \
-        -DCMAKE_CXX_FLAGS_INIT="$CFGUARD_CFLAGS" \
+        -DCMAKE_C_FLAGS_INIT="$init_flags" \
+        -DCMAKE_CXX_FLAGS_INIT="$init_flags" \
         ..
 
     cmake --build . ${CORES:+-j${CORES}}

@@ -61,6 +61,15 @@ PREFIX="$(cd "$PREFIX" && pwd)"
 export PATH="$PREFIX/bin:$PATH"
 
 : ${ARCHS:=${TOOLCHAIN_ARCHS-i686 x86_64 armv7 aarch64 arm64ec}}
+: ${TARGET_TRIPLES:=${TARGET_TRIPLES-i686-w64-mingw32 x86_64-w64-mingw32 armv7-w64-mingw32 aarch64-w64-mingw32 arm64ec-w64-mingw32 }}
+
+# for backwards compatibility
+for arch in $ARCHS; do
+    case $TARGET_TRIPLES in
+        *$arch-w64-mingw32*) ;;
+        *) TARGET_TRIPLES="$TARGET_TRIPLES $arch-w64-mingw32" ;;
+    esac
+done
 
 CLANG_RESOURCE_DIR="$("$PREFIX/bin/clang" --print-resource-dir)"
 
@@ -122,57 +131,76 @@ if [ -n "$NATIVE" ]; then
     exit 0
 fi
 
-for arch in $ARCHS; do
-    [ -z "$CLEAN" ] || rm -rf build-$arch$BUILD_SUFFIX
-    mkdir -p build-$arch$BUILD_SUFFIX
-    cd build-$arch$BUILD_SUFFIX
+for target_triple in $TARGET_TRIPLES; do
+    [ -z "$CLEAN" ] || rm -rf build-$target_triple$BUILD_SUFFIX
+    mkdir -p build-$target_triple$BUILD_SUFFIX
+    cd build-$target_triple$BUILD_SUFFIX
     [ -n "$NO_RECONF" ] || rm -rf CMake*
+
+    target_arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
+    target_env=$(expr match "$target_triple" '.*-.*-\(.*\)')
+    case $target_triple in
+    *-linux-gnu*)
+        target_system=Linux
+        init_flags=""
+        compiler_target=$target_arch-linux-$target_env
+        ;;
+    *-w64-mingw32*)
+        target_system=Windows
+        init_flags=$CFGUARD_CFLAGS
+        compiler_target=$target_arch-w64-windows-gnu
+        ;;
+    esac
+
     cmake \
         ${CMAKE_GENERATOR+-G} "$CMAKE_GENERATOR" \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$CLANG_RESOURCE_DIR" \
-        -DCMAKE_C_COMPILER=$arch-w64-mingw32-clang \
-        -DCMAKE_CXX_COMPILER=$arch-w64-mingw32-clang++ \
-        -DCMAKE_SYSTEM_NAME=Windows \
+        -DCMAKE_C_COMPILER=$target_triple-clang \
+        -DCMAKE_CXX_COMPILER=$target_triple-clang++ \
+        -DCMAKE_SYSTEM_NAME=$target_system \
         -DCMAKE_AR="$PREFIX/bin/llvm-ar" \
         -DCMAKE_RANLIB="$PREFIX/bin/llvm-ranlib" \
         -DCMAKE_C_COMPILER_WORKS=1 \
         -DCMAKE_CXX_COMPILER_WORKS=1 \
-        -DCMAKE_C_COMPILER_TARGET=$arch-w64-windows-gnu \
+        -DCMAKE_C_COMPILER_TARGET=$compiler_target \
         -DCOMPILER_RT_DEFAULT_TARGET_ONLY=TRUE \
         -DCOMPILER_RT_USE_BUILTINS_LIBRARY=TRUE \
         -DCOMPILER_RT_BUILD_BUILTINS=$BUILD_BUILTINS \
         -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=FALSE \
         -DLLVM_CONFIG_PATH="" \
-        -DCMAKE_FIND_ROOT_PATH=$PREFIX/$arch-w64-mingw32 \
+        -DCMAKE_FIND_ROOT_PATH=$PREFIX/$target_triple \
         -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
         -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
         -DSANITIZER_CXX_ABI=libc++ \
-        -DCMAKE_C_FLAGS_INIT="$CFGUARD_CFLAGS" \
-        -DCMAKE_CXX_FLAGS_INIT="$CFGUARD_CFLAGS" \
+        -DCMAKE_C_FLAGS_INIT="$init_flags" \
+        -DCMAKE_CXX_FLAGS_INIT="$init_flags" \
         $SRC_DIR
     cmake --build . ${CORES:+-j${CORES}}
 
     # Skip install on arm64ec, we merge archives instead.
-    if [ "$arch" = "arm64ec" ]; then
+    if [ "$target_arch" = "arm64ec" ]; then
         cd ..
         continue
     fi
 
     cmake --install . --prefix "$INSTALL_PREFIX"
-    mkdir -p "$PREFIX/$arch-w64-mingw32/bin"
+    mkdir -p "$PREFIX/$target_triple/bin"
     if [ -n "$SANITIZERS" ]; then
-        case $arch in
-        aarch64)
+        case $target_triple in
+        aarch64-w64*)
             # asan doesn't work on aarch64 or armv7; make this clear by omitting
             # the installed files altogether.
             rm -f "$INSTALL_PREFIX/lib/windows/libclang_rt.asan"*aarch64*
             ;;
-        armv7)
+        armv7-w64*)
             rm -f "$INSTALL_PREFIX/lib/windows/libclang_rt.asan"*arm*
             ;;
-        *)
-            mv "$INSTALL_PREFIX/lib/windows/"*.dll "$PREFIX/$arch-w64-mingw32/bin"
+        *mingw32*)
+            mv "$INSTALL_PREFIX/lib/windows/"*.dll "$PREFIX/$target_triple/bin"
+            ;;
+        *linux-gnu*)
+            mv "$INSTALL_PREFIX/lib/linux/"*.so "$PREFIX/$target_triple/bin"
             ;;
         esac
     fi
@@ -183,13 +211,14 @@ done
 # in Clang, the current approach mirrors MSVC, where the core CRT is provided as
 # archives containing both EC and native support. Ideally, the LLVM build system would
 # handle this automatically, but for now we can merge it here.
-for arch in $ARCHS; do
+for target_triple in $TARGET_TRIPLES; do
+    arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
     if [ "$arch" = "arm64ec" ]; then
         rm -f "$INSTALL_PREFIX/lib/windows/libclang_rt.builtins-aarch64.a" \
               "$INSTALL_PREFIX/lib/windows/libclang_rt.builtins-arm64ec.a"
         "$PREFIX/bin/llvm-lib" -machine:arm64ec "-out:$INSTALL_PREFIX/lib/windows/libclang_rt.builtins-aarch64.a" \
-                               build-aarch64/lib/windows/libclang_rt.builtins-aarch64.a \
-                               build-arm64ec/lib/windows/libclang_rt.builtins-arm64ec.a
+                               build-aarch64-w64-mingw32/lib/windows/libclang_rt.builtins-aarch64.a \
+                               build-arm64ec-w64-mingw32/lib/windows/libclang_rt.builtins-arm64ec.a
     fi
 done
 

@@ -43,6 +43,15 @@ PREFIX="$(cd "$PREFIX" && pwd)"
 export PATH="$PREFIX/bin:$PATH"
 
 : ${ARCHS:=${TOOLCHAIN_ARCHS-i686 x86_64 armv7 aarch64 arm64ec}}
+: ${TARGET_TRIPLES:=${TARGET_TRIPLES-i686-w64-mingw32 x86_64-w64-mingw32 armv7-w64-mingw32 aarch64-w64-mingw32 arm64ec-w64-mingw32 }}
+
+# for backwards compatibility
+for arch in $ARCHS; do
+    case $TARGET_TRIPLES in
+        *$arch-w64-mingw32*) ;;
+        *) TARGET_TRIPLES="$TARGET_TRIPLES $arch-w64-mingw32" ;;
+    esac
+done
 
 if [ ! -d llvm-project/openmp ] || [ -n "$SYNC" ]; then
     CHECKOUT_ONLY=1 ./build-llvm.sh
@@ -64,9 +73,21 @@ else
     esac
 fi
 
-for arch in $ARCHS; do
+for target_triple in $TARGET_TRIPLES; do
+      target_arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
+      case $target_triple in
+      *-linux-gnu*)
+          target_system=Linux
+          init_flags=""
+          ;;
+      *-w64-mingw32*)
+          target_system=Windows
+          init_flags=$CFGUARD_CFLAGS
+          ;;
+      esac
+
     CMAKEFLAGS=""
-    case $arch in
+    case $target_arch in
     x86_64)
         CMAKEFLAGS="$CMAKEFLAGS -DLIBOMP_ASMFLAGS=-m64"
         ;;
@@ -76,30 +97,30 @@ for arch in $ARCHS; do
         ;;
     esac
 
-    [ -z "$CLEAN" ] || rm -rf build-$arch
-    mkdir -p build-$arch
-    cd build-$arch
+    [ -z "$CLEAN" ] || rm -rf build-$target_triple
+    mkdir -p build-$target_triple
+    cd build-$target_triple
     [ -n "$NO_RECONF" ] || rm -rf CMake*
 
     cmake \
         ${CMAKE_GENERATOR+-G} "$CMAKE_GENERATOR" \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX/$arch-w64-mingw32" \
-        -DCMAKE_C_COMPILER=$arch-w64-mingw32-clang \
-        -DCMAKE_CXX_COMPILER=$arch-w64-mingw32-clang++ \
-        -DCMAKE_RC_COMPILER=$arch-w64-mingw32-windres \
+        -DCMAKE_INSTALL_PREFIX="$PREFIX/$target_triple" \
+        -DCMAKE_C_COMPILER=$target_triple-clang \
+        -DCMAKE_CXX_COMPILER=$target_triple-clang++ \
+        -DCMAKE_RC_COMPILER=$target_triple-windres \
         -DCMAKE_ASM_MASM_COMPILER=llvm-ml \
-        -DCMAKE_SYSTEM_NAME=Windows \
+        -DCMAKE_SYSTEM_NAME=$target_system \
         -DCMAKE_AR="$PREFIX/bin/llvm-ar" \
         -DCMAKE_RANLIB="$PREFIX/bin/llvm-ranlib" \
         -DLIBOMP_ENABLE_SHARED=TRUE \
-        -DCMAKE_C_FLAGS_INIT="$CFGUARD_CFLAGS" \
-        -DCMAKE_CXX_FLAGS_INIT="$CFGUARD_CFLAGS" \
+        -DCMAKE_C_FLAGS_INIT="$init_flags" \
+        -DCMAKE_CXX_FLAGS_INIT="$init_flags" \
         $CMAKEFLAGS \
         ..
     cmake --build . ${CORES:+-j${CORES}}
     cmake --install .
-    rm -f $PREFIX/$arch-w64-mingw32/bin/*iomp5md*
-    rm -f $PREFIX/$arch-w64-mingw32/lib/*iomp5md*
+    rm -f $PREFIX/$target_triple/bin/*iomp5md*
+    rm -f $PREFIX/$target_triple/lib/*iomp5md*
     cd ..
 done
