@@ -159,11 +159,13 @@ for target_triple in $TARGET_TRIPLES; do
         target_system=Linux
         init_flags=""
         compiler_target=$target_arch-linux-$target_env
+        sysroot="$PREFIX/$target_triple"
         ;;
     *-w64-mingw32*)
         target_system=Windows
         init_flags=$CFGUARD_CFLAGS
         compiler_target=$target_arch-w64-windows-gnu
+        sysroot=""
         ;;
     esac
 
@@ -184,7 +186,7 @@ for target_triple in $TARGET_TRIPLES; do
         -DCOMPILER_RT_BUILD_BUILTINS=$BUILD_BUILTINS \
         -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=FALSE \
         -DLLVM_CONFIG_PATH="" \
-        -DCMAKE_FIND_ROOT_PATH=$PREFIX/$target_triple \
+        -DCMAKE_SYSROOT=$sysroot \
         -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
         -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
         -DSANITIZER_CXX_ABI=libc++ \

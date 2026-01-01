@@ -83,10 +83,12 @@ for target_triple in $TARGET_TRIPLES; do
       *-linux-gnu*)
           target_system=Linux
           init_flags=""
+          sysroot="$PREFIX/$target_triple"
           ;;
       *-w64-mingw32*)
           target_system=Windows
           init_flags=$CFGUARD_CFLAGS
+          sysroot=""
           ;;
       esac
 
@@ -117,6 +119,9 @@ for target_triple in $TARGET_TRIPLES; do
         -DCMAKE_SYSTEM_NAME=$target_system \
         -DCMAKE_AR="$PREFIX/bin/llvm-ar" \
         -DCMAKE_RANLIB="$PREFIX/bin/llvm-ranlib" \
+        -DCMAKE_SYSROOT=$sysroot \
+        -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+        -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
         -DLIBOMP_ENABLE_SHARED=TRUE \
         -DCMAKE_C_FLAGS_INIT="$init_flags" \
         -DCMAKE_CXX_FLAGS_INIT="$init_flags" \

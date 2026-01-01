@@ -98,11 +98,13 @@ for target_triple in $TARGET_TRIPLES; do
         target_system=Linux
         init_flags=""
         compiler_target=$target_arch-linux-$target_env
+        sysroot="$PREFIX/$target_triple"
         ;;
     *-w64-mingw32*)
         target_system=Windows
-        init_flags=$CFGUARD_CFLAGS
+        init_flags="$CFGUARD_CFLAGS"
         compiler_target=$target_arch-w64-windows-gnu
+        sysroot=""
         ;;
     esac
 
@@ -132,6 +134,9 @@ for target_triple in $TARGET_TRIPLES; do
         -DLIBCXX_INSTALL_MODULES=ON \
         -DLIBCXX_INSTALL_MODULES_DIR="$PREFIX/share/libc++/v1" \
         -DLIBCXX_ENABLE_ABI_LINKER_SCRIPT=FALSE \
+        -DCMAKE_SYSROOT=$sysroot \
+        -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+        -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
         -DLIBCXXABI_USE_COMPILER_RT=ON \
         -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
         -DLIBCXXABI_ENABLE_SHARED=OFF \
