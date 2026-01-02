@@ -121,6 +121,7 @@ for target_triple in $TARGET_TRIPLES; do
         -DCMAKE_AR="$PREFIX/bin/llvm-ar" \
         -DCMAKE_RANLIB="$PREFIX/bin/llvm-ranlib" \
         -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;libcxx" \
+        -DLLVM_ENABLE_PIC=ON \
         -DLIBUNWIND_USE_COMPILER_RT=TRUE \
         -DLIBUNWIND_ENABLE_SHARED=$BUILD_SHARED \
         -DLIBUNWIND_ENABLE_STATIC=$BUILD_STATIC \
