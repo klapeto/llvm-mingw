@@ -94,7 +94,7 @@ for target_triple in $TARGET_TRIPLES; do
     target_arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
     target_env=$(expr match "$target_triple" '.*-.*-\(.*\)')
     case $target_triple in
-    *-linux-gnu*)
+    *-linux-*)
         target_system=Linux
         init_flags=""
         compiler_target=$target_arch-linux-$target_env
@@ -105,6 +105,15 @@ for target_triple in $TARGET_TRIPLES; do
         init_flags="$CFGUARD_CFLAGS"
         compiler_target=$target_arch-w64-windows-gnu
         sysroot=""
+        ;;
+    esac
+
+    case $target_triple in
+    *-linux-musl*)
+        enable_musl=ON
+        ;;
+    *)
+        enable_musl=OFF
         ;;
     esac
 
@@ -125,6 +134,7 @@ for target_triple in $TARGET_TRIPLES; do
         -DLIBUNWIND_USE_COMPILER_RT=TRUE \
         -DLIBUNWIND_ENABLE_SHARED=$BUILD_SHARED \
         -DLIBUNWIND_ENABLE_STATIC=$BUILD_STATIC \
+        -DLIBCXX_HAS_MUSL_LIBC=$enable_musl \
         -DLIBCXX_USE_COMPILER_RT=ON \
         -DLIBCXX_ENABLE_SHARED=$BUILD_SHARED \
         -DLIBCXX_ENABLE_STATIC=$BUILD_STATIC \

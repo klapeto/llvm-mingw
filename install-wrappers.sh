@@ -141,9 +141,10 @@ fi
 mkdir -p "$PREFIX/bin"
 cp wrappers/*-wrapper.sh "$PREFIX/bin"
 cp wrappers/mingw32-common.cfg $PREFIX/bin
+cp wrappers/linux-common.cfg $PREFIX/bin
 for target_triple in $TARGET_TRIPLES; do
     case $target_triple in
-    *-linux-gnu*)
+    *-linux-*)
         arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
         target_env=$(expr match "$target_triple" '.*-.*-\(.*\)')
         cp wrappers/$arch-linux-$target_env.cfg $PREFIX/bin

@@ -77,7 +77,7 @@ done
 
 for target_triple in $TARGET_TRIPLES; do
     case $target_triple in
-    *-linux-gnu*);;
+    *-linux-*);;
     *-w64-mingw32*);;
     *)
         echo "Invalid target triple: $target_triple"
@@ -155,7 +155,7 @@ for target_triple in $TARGET_TRIPLES; do
     target_arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
     target_env=$(expr match "$target_triple" '.*-.*-\(.*\)')
     case $target_triple in
-    *-linux-gnu*)
+    *-linux-*)
         target_system=Linux
         init_flags=""
         compiler_target=$target_arch-linux-$target_env
@@ -166,6 +166,15 @@ for target_triple in $TARGET_TRIPLES; do
         init_flags=$CFGUARD_CFLAGS
         compiler_target=$target_arch-w64-windows-gnu
         sysroot=""
+        ;;
+    esac
+
+    case $target_triple in
+    *-linux-musl*)
+        enable_musl=ON
+        ;;
+    *)
+        enable_musl=OFF
         ;;
     esac
 
@@ -185,6 +194,7 @@ for target_triple in $TARGET_TRIPLES; do
         -DCOMPILER_RT_USE_BUILTINS_LIBRARY=TRUE \
         -DCOMPILER_RT_BUILD_BUILTINS=$BUILD_BUILTINS \
         -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=FALSE \
+        -DLIBCXX_HAS_MUSL_LIBC=$enable_musl \
         -DLLVM_CONFIG_PATH="" \
         -DCMAKE_SYSROOT=$sysroot \
         -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \

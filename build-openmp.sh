@@ -80,7 +80,7 @@ fi
 for target_triple in $TARGET_TRIPLES; do
       target_arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
       case $target_triple in
-      *-linux-gnu*)
+      *-linux-*)
           target_system=Linux
           init_flags=""
           sysroot="$PREFIX/$target_triple"
