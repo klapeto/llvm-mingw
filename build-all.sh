@@ -234,6 +234,8 @@ if [ -n "$CLEAN_RUNTIMES" ]; then
     export CLEAN=1
 fi
 ./build-mingw-w64.sh $PREFIX $MINGW_ARGS $CFGUARD_ARGS
+./build-musl-sysroots.sh $PREFIX
+./build-gnu-sysroots.sh $PREFIX
 ./build-compiler-rt.sh $PREFIX $CFGUARD_ARGS
 ./build-libcxx.sh $PREFIX $CFGUARD_ARGS
 ./build-mingw-w64-libraries.sh $PREFIX $CFGUARD_ARGS
