@@ -46,9 +46,9 @@ if [ -z "$CHECKOUT_ONLY" ]; then
     PREFIX="$(cd "$PREFIX" && pwd)"
 fi
 
-if [ ! -f SysrootGenerator ]; then
-    wget -O SysrootGenerator https://github.com/klapeto/SysrootGenerator/releases/download/v1.0.2/SysrootGenerator-linux-x86-64
-    echo "d6d961cd59c01bf52d48176231641d9e4d3c55f95f0d2163cdbd646c7e0d526e ./SysrootGenerator" | sha256sum -c
+if [ ! -f SysrootGenerator ] || [ ! -x SysrootGenerator ]; then
+    wget -O SysrootGenerator https://github.com/klapeto/SysrootGenerator/releases/download/v1.0.3/SysrootGenerator-linux-x86-64
+    echo "17ca23f186f4b6f41662af2330db75c89a6fe0ded266e3224bb1b6154fa7ffdd ./SysrootGenerator" | sha256sum -c
     chmod +x ./SysrootGenerator
 fi
 
