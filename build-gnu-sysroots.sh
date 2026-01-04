@@ -28,7 +28,7 @@ fi
 PREFIX="$1"
 
 case $TARGET_TRIPLES in
-*-linux-gnu)
+*-linux-gnu*)
     ;;
 *)
     echo "Nothing to build for gnu sysroots"
