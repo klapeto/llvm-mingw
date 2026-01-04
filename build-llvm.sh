@@ -145,15 +145,18 @@ if [ -n "$SYNC" ] || [ -n "$CHECKOUT" ]; then
             # gets the tag too, not only the commit itself. This allows
             # later fetches to realize that the tag already exists locally.
             git fetch --depth 1 origin tag "$LLVM_VERSION"
+            git reset --hard
             git checkout "$LLVM_VERSION"
             ;;
         *)
             git fetch --depth 1 origin "$LLVM_VERSION"
+            git reset --hard
             git checkout FETCH_HEAD
             ;;
         esac
     fi
     cd ..
+    patch -f -p1 < patches/llvm-musl.patch
 fi
 
 [ -z "$CHECKOUT_ONLY" ] || exit 0

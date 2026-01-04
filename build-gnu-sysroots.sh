@@ -57,10 +57,10 @@ fi
 export PATH="$PREFIX/bin:$PATH"
 
 packages="build-essential"
-default_args="--cache-path=$CACHE_PATH --no-bins"
+sysroot_args="--no-bins"
 
 if [ -n "$CLEAN" ]; then
-    default_args="$default_args --purge"
+    sysroot_args="$sysroot_args --purge"
 fi
 for target_triple in $TARGET_TRIPLES; do
     sysroot=$PREFIX/$target_triple
@@ -87,11 +87,11 @@ for target_triple in $TARGET_TRIPLES; do
         ;;
     esac
 
-    ./SysrootGenerator "$default_args" \
-        --path="$sysroot" \
-        --arch="$deb_arch" \
-        --distribution="$DEB_DISTRIBUTION" \
-        --sources="$DEB_SOURCES" \
-        --packages="$packages" \
-        --purge
+    ./SysrootGenerator $sysroot_args \
+        --path "$sysroot" \
+        --arch "$deb_arch" \
+        --distribution "$DEB_DISTRIBUTION" \
+        --sources "$DEB_SOURCES" \
+        --cache-path "$CACHE_PATH" \
+        --packages="$packages"
 done
