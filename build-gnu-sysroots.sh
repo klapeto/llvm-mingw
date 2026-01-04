@@ -61,6 +61,8 @@ sysroot_args="--no-bins"
 
 if [ -n "$CLEAN" ]; then
     sysroot_args="$sysroot_args --purge"
+else
+    sysroot_args="$sysroot_args --store-install-state"
 fi
 for target_triple in $TARGET_TRIPLES; do
     sysroot=$PREFIX/$target_triple
@@ -69,7 +71,7 @@ for target_triple in $TARGET_TRIPLES; do
     aarch64-linux-gnu)
         deb_arch=arm64;
         ;;
-    arm-linux-gnu)
+    arm-linux-gnueabihf)
         deb_arch=armhf;
         ;;
     riscv64-linux-gnu)

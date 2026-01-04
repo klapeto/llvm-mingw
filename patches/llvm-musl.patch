@@ -1,9 +1,9 @@
 diff --git a/llvm-project/compiler-rt/lib/gwp_asan/optional/backtrace_linux_libc.cpp b/llvm-project/compiler-rt/lib/gwp_asan/optional/backtrace_linux_libc.cpp
 --- a/llvm-project/compiler-rt/lib/gwp_asan/optional/backtrace_linux_libc.cpp	(revision Staged)
-+++ b/llvm-project/compiler-rt/lib/gwp_asan/optional/backtrace_linux_libc.cpp	(date 1767537016996)
++++ b/llvm-project/compiler-rt/lib/gwp_asan/optional/backtrace_linux_libc.cpp	(date 1767544130274)
 @@ -7,7 +7,9 @@
  //===----------------------------------------------------------------------===//
- 
+
  #include <assert.h>
 +#if defined(__GLIBC__)
  #include <execinfo.h>
@@ -14,25 +14,25 @@ diff --git a/llvm-project/compiler-rt/lib/gwp_asan/optional/backtrace_linux_libc
 @@ -22,7 +24,11 @@
  size_t Backtrace(uintptr_t *TraceBuffer, size_t Size) {
    static_assert(sizeof(uintptr_t) == sizeof(void *), "uintptr_t is not void*");
- 
+
 +#if defined(__GLIBC__)
    return backtrace(reinterpret_cast<void **>(TraceBuffer), Size);
 +#else
 +  return 0;
 +#endif
  }
- 
+
  // We don't need any custom handling for the Segv backtrace - the libc unwinder
 @@ -41,7 +47,11 @@
    }
- 
+
    char **BacktraceSymbols =
 +#if defined(__GLIBC__)
        backtrace_symbols(reinterpret_cast<void **>(Trace), TraceLength);
 +#else
 +    nullptr;
 +#endif
- 
+
    for (size_t i = 0; i < TraceLength; ++i) {
      if (!BacktraceSymbols)
 @@ -53,6 +63,7 @@
@@ -42,11 +42,24 @@ diff --git a/llvm-project/compiler-rt/lib/gwp_asan/optional/backtrace_linux_libc
 +
  }
  } // anonymous namespace
- 
+
 @@ -64,4 +75,4 @@
  SegvBacktrace_t getSegvBacktraceFunction() { return SegvBacktrace; }
- 
+
  } // namespace backtrace
 -} // namespace gwp_asan
 +} // namespace gwp_asan
 \ No newline at end of file
+diff --git a/llvm-project/openmp/runtime/src/kmp_platform.h b/llvm-project/openmp/runtime/src/kmp_platform.h
+--- a/llvm-project/openmp/runtime/src/kmp_platform.h	(revision Staged)
++++ b/llvm-project/openmp/runtime/src/kmp_platform.h	(date 1767549476322)
+@@ -182,6 +182,9 @@
+ #elif defined __aarch64__
+ #undef KMP_ARCH_AARCH64
+ #define KMP_ARCH_AARCH64 1
++#elif defined(__arm__) || defined(_M_ARM)
++#undef KMP_ARCH_ARMV7
++#define KMP_ARCH_ARMV7 1
+ #elif defined __mips__
+ #if defined __mips64
+ #undef KMP_ARCH_MIPS64
