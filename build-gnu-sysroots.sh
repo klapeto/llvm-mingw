@@ -56,8 +56,8 @@ fi
 
 export PATH="$PREFIX/bin:$PATH"
 
-packages="build-essential"
-sysroot_args="--no-bins"
+packages="libc6-dev"
+sysroot_args=""
 
 if [ -n "$CLEAN" ]; then
     sysroot_args="$sysroot_args --purge"
