@@ -19,6 +19,8 @@ set -e
 : ${DEB_DISTRIBUTION:=noble}
 : ${DEB_SOURCES:="https://archive.ubuntu.com/ubuntu/|main,universe https://ports.ubuntu.com/ubuntu-ports/|main,universe"}
 : ${CACHE_PATH:="$PWD/cache"}
+: ${SYSROOTGEN_VERSION:="v1.0.4"}
+: ${SYSROOTGEN_CHECKSUM:="371fccb3fb124ef8aa0cdab3d5b2dd13dab3a6e2a4c9f6f481aa68c942ea2d46"}
 
 if [ $# -ne 1 ]; then
     echo "$0 dest"
@@ -47,8 +49,8 @@ if [ -z "$CHECKOUT_ONLY" ]; then
 fi
 
 if [ ! -f SysrootGenerator ] || [ ! -x SysrootGenerator ]; then
-    wget -O SysrootGenerator https://github.com/klapeto/SysrootGenerator/releases/download/v1.0.3/SysrootGenerator-linux-x86-64
-    echo "17ca23f186f4b6f41662af2330db75c89a6fe0ded266e3224bb1b6154fa7ffdd ./SysrootGenerator" | sha256sum -c
+    wget -O SysrootGenerator "https://github.com/klapeto/SysrootGenerator/releases/download/${SYSROOTGEN_VERSION}/SysrootGenerator-linux-x86-64"
+    echo "${SYSROOTGEN_CHECKSUM} ./SysrootGenerator" | sha256sum -c
     chmod +x ./SysrootGenerator
 fi
 
