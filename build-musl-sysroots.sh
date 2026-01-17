@@ -46,12 +46,12 @@ if [ -z "$CHECKOUT_ONLY" ]; then
 fi
 
 if [ ! -d linux ]; then
-    git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+    git clone --depth=1 https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
     CHECKOUT=1
 fi
 
 if [ ! -d musl ]; then
-    git clone https://git.musl-libc.org/git/musl
+    git clone --depth=1 https://git.musl-libc.org/git/musl
     CHECKOUT=1
 fi
 
@@ -60,6 +60,7 @@ cd linux
 if [ -n "$SYNC" ] || [ -n "$CHECKOUT" ]; then
     [ -z "$SYNC" ] || git fetch
     if [ $LINUX_VERSION_TAG != "latest" ]; then
+        git fetch --depth 1 origin tag $LINUX_VERSION_TAG
         git checkout $LINUX_VERSION_TAG
     fi
 fi
@@ -69,6 +70,7 @@ cd ../musl
 if [ -n "$SYNC" ] || [ -n "$CHECKOUT" ]; then
     [ -z "$SYNC" ] || git fetch
     if [ $MUSL_VERSION_TAG != "latest" ]; then
+        git fetch --depth 1 origin tag $MUSL_VERSION_TAG
         git checkout $MUSL_VERSION_TAG
     fi
 fi
