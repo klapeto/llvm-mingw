@@ -80,7 +80,7 @@ for target_triple in $TARGET_TRIPLES; do
         deb_arch=riscv64;
         ;;
     i686-linux-gnu)
-        deb_arch=i368
+        deb_arch=i386
         ;;
     x86_64-linux-gnu)
         deb_arch=amd64
