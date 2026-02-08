@@ -22,6 +22,11 @@ set -e
 : ${SYSROOTGEN_VERSION:="v1.0.4"}
 : ${SYSROOTGEN_CHECKSUM:="371fccb3fb124ef8aa0cdab3d5b2dd13dab3a6e2a4c9f6f481aa68c942ea2d46"}
 
+if [ -n "$NO_SYSROOT_GEN" ]; then
+    echo "Bypassing generating sysroot"
+    exit 0
+fi
+
 if [ $# -ne 1 ]; then
     echo "$0 dest"
     exit 1
