@@ -19,8 +19,8 @@ set -e
 : ${DEB_DISTRIBUTION:=noble}
 : ${DEB_SOURCES:="https://archive.ubuntu.com/ubuntu/|main,universe https://ports.ubuntu.com/ubuntu-ports/|main,universe"}
 : ${CACHE_PATH:="$PWD/cache"}
-: ${SYSROOTGEN_VERSION:="v1.0.4"}
-: ${SYSROOTGEN_CHECKSUM:="371fccb3fb124ef8aa0cdab3d5b2dd13dab3a6e2a4c9f6f481aa68c942ea2d46"}
+: ${SYSROOTGEN_VERSION:="v1.0.5"}
+: ${SYSROOTGEN_CHECKSUM:="5061221e2a3e5d591b005743bad8f8fa2bafbc4712922aee65d6c53160595fe8"}
 
 if [ -n "$NO_SYSROOT_GEN" ]; then
     echo "Bypassing generating sysroot"
