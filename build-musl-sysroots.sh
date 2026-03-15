@@ -107,7 +107,7 @@ for target_triple in $TARGET_TRIPLES; do
     riscv64-linux-*)
         linux_arch=riscv;
         ;;
-    i686-linux-*)
+    i[63]86-linux-*)
         linux_arch=x86
         ;;
     x86_64-linux-*)

@@ -144,7 +144,7 @@ for arch in $ARCHS; do
     aarch64|arm64ec)
         FLAGS="--disable-lib32 --disable-lib64 --enable-libarm64"
         ;;
-    i686)
+    i[63]86)
         FLAGS="--enable-lib32 --disable-lib64"
         ;;
     x86_64)
