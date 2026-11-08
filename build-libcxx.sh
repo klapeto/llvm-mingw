@@ -19,6 +19,8 @@ set -e
 BUILD_STATIC=ON
 BUILD_SHARED=ON
 CFGUARD_CFLAGS="-mguard=cf"
+DEBUG_SYMBOLS=0
+BUILD_TYPE=Release
 
 while [ $# -gt 0 ]; do
     if [ "$1" = "--disable-shared" ]; then
@@ -33,6 +35,9 @@ while [ $# -gt 0 ]; do
         CFGUARD_CFLAGS="-mguard=cf"
     elif [ "$1" = "--disable-cfguard" ]; then
         CFGUARD_CFLAGS=
+    elif [ "$1" = "--debug-symbols" ]; then
+        DEBUG_SYMBOLS=1
+        BUILD_TYPE=RelWithDebInfo
     else
         PREFIX="$1"
     fi
@@ -96,13 +101,21 @@ for target_triple in $TARGET_TRIPLES; do
     case $target_triple in
     *-linux-*)
         target_system=Linux
-        init_flags=""
+        if [ "$DEBUG_SYMBOLS" = "0" ]; then
+            init_flags=""
+        else
+            init_flags="-g3"
+        fi
         compiler_target=$target_arch-linux-$target_env
         sysroot="$PREFIX/$target_triple"
         ;;
     *-w64-mingw32*)
         target_system=Windows
-        init_flags="$CFGUARD_CFLAGS"
+        if [ "$DEBUG_SYMBOLS" = "0" ]; then
+            init_flags="$CFGUARD_CFLAGS"
+        else
+            init_flags="$CFGUARD_CFLAGS -g3 -gcodeview"
+        fi
         compiler_target=$target_arch-w64-windows-gnu
         sysroot=""
         ;;
@@ -119,7 +132,7 @@ for target_triple in $TARGET_TRIPLES; do
 
     cmake \
         ${CMAKE_GENERATOR+-G} "$CMAKE_GENERATOR" \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
         -DCMAKE_INSTALL_PREFIX="$PREFIX/$target_triple" \
         -DCMAKE_C_COMPILER=$target_triple-clang \
         -DCMAKE_CXX_COMPILER=$target_triple-clang++ \

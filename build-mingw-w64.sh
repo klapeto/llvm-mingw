@@ -21,6 +21,8 @@ set -e
 : ${MINGW_W64_VERSION:=c4ae0f47b9adf0b6b91dcc906f5b1fbfe342bb42}
 
 CFGUARD_FLAGS="--enable-cfguard"
+DEBUG_SYMBOLS=0
+USE_CFLAGS="-O2 -g"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -38,6 +40,9 @@ while [ $# -gt 0 ]; do
         ;;
     --disable-cfguard)
         CFGUARD_FLAGS=
+        ;;
+    --debug-symbols)
+        DEBUG_SYMBOLS=1
         ;;
     *)
         PREFIX="$1"
@@ -132,6 +137,10 @@ if [ -z "$SKIP_INCLUDE_TRIPLET_PREFIX" ]; then
     done
 fi
 
+if [ "$DEBUG_SYMBOLS" = "1" ]; then
+    USE_CFLAGS="-O2 -g3 -gcodeview"
+fi
+
 cd mingw-w64-crt
 for arch in $ARCHS; do
     [ -z "$CLEAN" ] || rm -rf build-$arch
@@ -153,7 +162,7 @@ for arch in $ARCHS; do
     esac
     FLAGS="$FLAGS --with-default-msvcrt=$DEFAULT_MSVCRT"
     FLAGS="$FLAGS --enable-silent-rules"
-    ../configure --host=$arch-w64-mingw32 --prefix="$PREFIX/$arch-w64-mingw32" $FLAGS $CFGUARD_FLAGS $CRT_CONFIG_FLAGS
+    ../configure --host=$arch-w64-mingw32 --prefix="$PREFIX/$arch-w64-mingw32" $FLAGS $CFGUARD_FLAGS $CRT_CONFIG_FLAGS CFLAGS="$USE_CFLAGS" CXXFLAGS="$USE_CFLAGS"
     $MAKE -j$CORES
     $MAKE install
     cd ..

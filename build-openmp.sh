@@ -17,6 +17,8 @@
 set -e
 
 CFGUARD_CFLAGS="-mguard=cf"
+DEBUG_SYMBOLS=0
+BUILD_TYPE=Release
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -25,6 +27,10 @@ while [ $# -gt 0 ]; do
         ;;
     --disable-cfguard)
         CFGUARD_CFLAGS=
+        ;;
+    --debug-symbols)
+        DEBUG_SYMBOLS=1
+        BUILD_TYPE=RelWithDebInfo
         ;;
     *)
         PREFIX="$1"
@@ -82,12 +88,20 @@ for target_triple in $TARGET_TRIPLES; do
       case $target_triple in
       *-linux-*)
           target_system=Linux
-          init_flags=""
+          if [ "$DEBUG_SYMBOLS" = "0" ]; then
+            init_flags=""
+          else
+            init_flags="-g3"
+          fi
           sysroot="$PREFIX/$target_triple"
           ;;
       *-w64-mingw32*)
           target_system=Windows
-          init_flags=$CFGUARD_CFLAGS
+          if [ "$DEBUG_SYMBOLS" = "0" ]; then
+            init_flags="$CFGUARD_CFLAGS"
+          else
+            init_flags="$CFGUARD_CFLAGS -g3 -gcodeview"
+          fi
           sysroot=""
           ;;
       esac
@@ -110,7 +124,7 @@ for target_triple in $TARGET_TRIPLES; do
 
     cmake \
         ${CMAKE_GENERATOR+-G} "$CMAKE_GENERATOR" \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
         -DCMAKE_INSTALL_PREFIX="$PREFIX/$target_triple" \
         -DCMAKE_C_COMPILER=$target_triple-clang \
         -DCMAKE_CXX_COMPILER=$target_triple-clang++ \

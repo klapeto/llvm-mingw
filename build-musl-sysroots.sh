@@ -101,7 +101,7 @@ for target_triple in $TARGET_TRIPLES; do
     aarch64-linux-*)
         linux_arch=arm64;
         ;;
-    arm-linux-*)
+    arm-linux-*|armv7-linux-*)
         linux_arch=arm;
         ;;
     riscv64-linux-*)

@@ -17,6 +17,7 @@
 set -e
 
 USE_CFLAGS="-g -O2 -mguard=cf"
+DEBUG_SYMBOLS=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -25,6 +26,9 @@ while [ $# -gt 0 ]; do
         ;;
     --disable-cfguard)
         USE_CFLAGS="-g -O2"
+        ;;
+--debug-symbols)
+        DEBUG_SYMBOLS=1
         ;;
     *)
         PREFIX="$1"
@@ -73,6 +77,10 @@ fi
 MAKE=make
 if command -v gmake >/dev/null; then
     MAKE=gmake
+fi
+
+if [ "$DEBUG_SYMBOLS" = "1" ]; then
+    USE_CFLAGS="$USE_CFLAGS -g3 -gcodeview"
 fi
 
 cd mingw-w64/mingw-w64-libraries

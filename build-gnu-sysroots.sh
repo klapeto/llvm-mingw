@@ -78,7 +78,7 @@ for target_triple in $TARGET_TRIPLES; do
     aarch64-linux-gnu)
         deb_arch=arm64;
         ;;
-    arm-linux-gnueabihf)
+    arm-linux-gnueabihf|armv7-linux-gnueabihf)
         deb_arch=armhf;
         ;;
     riscv64-linux-gnu)

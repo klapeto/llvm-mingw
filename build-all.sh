@@ -21,6 +21,7 @@ LLVM_ARGS=""
 MINGW_ARGS=""
 CFGUARD_ARGS="--enable-cfguard"
 HOST_ARGS=""
+DEBUG_SYMBOLS=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -105,6 +106,9 @@ while [ $# -gt 0 ]; do
         PGO=1
         FULL_PGO=1
         ;;
+    --debug-symbols)
+        DEBUG_SYMBOLS="--debug-symbols"
+        ;;
     *)
         if [ -n "$PREFIX" ]; then
             if [ -n "$PREFIX_PGO" ]; then
@@ -144,10 +148,10 @@ if [ -n "$FULL_PGO" ]; then
         echo Must provide a second destination for a PGO build
         exit 1
     fi
-    ./build-all.sh "$PREFIX" --stage1 $LLVM_ARGS $MINGW_ARGS $CFGUARD_ARGS
+    ./build-all.sh "$PREFIX" --stage1 $LLVM_ARGS $MINGW_ARGS $CFGUARD_ARGS $DEBUG_SYMBOLS
     unset COMPILER_LAUNCHER
-    ./build-all.sh "$PREFIX" --profile$INSTRUMENTATION $LLVM_ARGS
-    ./build-all.sh "$PREFIX" "$PREFIX_PGO" --thinlto --pgo --llvm-only $LLVM_ARGS
+    ./build-all.sh "$PREFIX" --profile$INSTRUMENTATION $LLVM_ARGS $DEBUG_SYMBOLS
+    ./build-all.sh "$PREFIX" "$PREFIX_PGO" --thinlto --pgo --llvm-only $LLVM_ARGS $DEBUG_SYMBOLS
     # If one already has a usable profile, one could also do the following
     # two steps only:
     # ./build-all.sh "$PREFIX" --stage1 --llvm-only
@@ -233,11 +237,11 @@ fi
 if [ -n "$CLEAN_RUNTIMES" ]; then
     export CLEAN=1
 fi
-./build-mingw-w64.sh $PREFIX $MINGW_ARGS $CFGUARD_ARGS
+./build-mingw-w64.sh $PREFIX $MINGW_ARGS $CFGUARD_ARGS $DEBUG_SYMBOLS
 ./build-musl-sysroots.sh $PREFIX
 ./build-gnu-sysroots.sh $PREFIX
-./build-compiler-rt.sh $PREFIX $CFGUARD_ARGS
-./build-libcxx.sh $PREFIX $CFGUARD_ARGS
-./build-mingw-w64-libraries.sh $PREFIX $CFGUARD_ARGS
+./build-compiler-rt.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS
+./build-libcxx.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS
+./build-mingw-w64-libraries.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS
 ./build-compiler-rt.sh $PREFIX --build-sanitizers # CFGUARD_ARGS intentionally omitted
-./build-openmp.sh $PREFIX $CFGUARD_ARGS
+./build-openmp.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS
