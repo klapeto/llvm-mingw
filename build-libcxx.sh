@@ -21,6 +21,8 @@ BUILD_SHARED=ON
 CFGUARD_CFLAGS="-mguard=cf"
 DEBUG_SYMBOLS=0
 BUILD_TYPE=Release
+ADDITIONAL_CFLAGS=""
+ADDITIONAL_CFLAGS_SCRIPT=""
 
 while [ $# -gt 0 ]; do
     if [ "$1" = "--disable-shared" ]; then
@@ -38,13 +40,27 @@ while [ $# -gt 0 ]; do
     elif [ "$1" = "--debug-symbols" ]; then
         DEBUG_SYMBOLS=1
         BUILD_TYPE=RelWithDebInfo
+    elif [ "${1#--additional-cflags=}" != "$1" ]; then
+        ADDITIONAL_CFLAGS="${1#*=}"
+    elif [ "${1#--additional-cflags-script=}" != "$1" ]; then
+        ADDITIONAL_CFLAGS_SCRIPT="${1#*=}"
     else
         PREFIX="$1"
     fi
     shift
 done
+
+if [ -n "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+    if [ ! -x "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+        echo "$ADDITIONAL_CFLAGS_SCRIPT is not executable"
+        exit 1
+    fi
+    # The builds below change directory
+    ADDITIONAL_CFLAGS_SCRIPT="$(cd "$(dirname "$ADDITIONAL_CFLAGS_SCRIPT")" && pwd)/$(basename "$ADDITIONAL_CFLAGS_SCRIPT")"
+fi
+
 if [ -z "$PREFIX" ]; then
-    echo "$0 [--disable-shared] [--disable-static] [--enable-cfguard|--disable-cfguard] dest"
+    echo "$0 [--disable-shared] [--disable-static] [--enable-cfguard|--disable-cfguard] [--additional-cflags=flags] [--additional-cflags-script=script] dest"
     exit 1
 fi
 
@@ -102,9 +118,9 @@ for target_triple in $TARGET_TRIPLES; do
     *-linux-*)
         target_system=Linux
         if [ "$DEBUG_SYMBOLS" = "0" ]; then
-            init_flags=""
+            init_flags="$ADDITIONAL_CFLAGS"
         else
-            init_flags="-g3"
+            init_flags="-g3 $ADDITIONAL_CFLAGS"
         fi
         compiler_target=$target_arch-linux-$target_env
         sysroot="$PREFIX/$target_triple"
@@ -112,9 +128,9 @@ for target_triple in $TARGET_TRIPLES; do
     *-w64-mingw32*)
         target_system=Windows
         if [ "$DEBUG_SYMBOLS" = "0" ]; then
-            init_flags="$CFGUARD_CFLAGS"
+            init_flags="$CFGUARD_CFLAGS $ADDITIONAL_CFLAGS"
         else
-            init_flags="$CFGUARD_CFLAGS -g3 -gcodeview"
+            init_flags="$CFGUARD_CFLAGS -g3 -gcodeview $ADDITIONAL_CFLAGS"
         fi
         compiler_target=$target_arch-w64-windows-gnu
         sysroot=""
@@ -127,6 +143,31 @@ for target_triple in $TARGET_TRIPLES; do
         ;;
     *)
         enable_musl=OFF
+        ;;
+    esac
+
+    if [ -n "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+        init_flags="$init_flags $("$ADDITIONAL_CFLAGS_SCRIPT" "$target_triple")"
+    fi
+
+    additional_cmake_flags=""
+    case $target_triple in
+    *-android*)
+        # LLVM's CMake checks ANDROID_NATIVE_API_LEVEL, e.g. for _FILE_OFFSET_BITS=64 on 32-bit before API 24
+        android_api=${target_triple##*-android}
+        android_api=${android_api#eabi}
+        additional_cmake_flags="-DANDROID=ON${android_api:+ -DANDROID_NATIVE_API_LEVEL=$android_api}"
+        ;;
+    esac
+
+    # Android devices have no libc++.so/libunwind.so, so a shared build would make every binary linked with the
+    # default -stdlib=libc++ depend on a library that has to be packaged with it. Link them statically instead.
+    target_shared=$BUILD_SHARED
+    target_static=$BUILD_STATIC
+    case $target_triple in
+    *-android*)
+        target_shared=OFF
+        target_static=ON
         ;;
     esac
 
@@ -145,12 +186,12 @@ for target_triple in $TARGET_TRIPLES; do
         -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;libcxx" \
         -DLLVM_ENABLE_PIC=ON \
         -DLIBUNWIND_USE_COMPILER_RT=TRUE \
-        -DLIBUNWIND_ENABLE_SHARED=$BUILD_SHARED \
-        -DLIBUNWIND_ENABLE_STATIC=$BUILD_STATIC \
+        -DLIBUNWIND_ENABLE_SHARED=$target_shared \
+        -DLIBUNWIND_ENABLE_STATIC=$target_static \
         -DLIBCXX_HAS_MUSL_LIBC=$enable_musl \
         -DLIBCXX_USE_COMPILER_RT=ON \
-        -DLIBCXX_ENABLE_SHARED=$BUILD_SHARED \
-        -DLIBCXX_ENABLE_STATIC=$BUILD_STATIC \
+        -DLIBCXX_ENABLE_SHARED=$target_shared \
+        -DLIBCXX_ENABLE_STATIC=$target_static \
         -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=TRUE \
         -DLIBCXX_CXX_ABI=libcxxabi \
         -DLIBCXX_LIBDIR_SUFFIX="" \
@@ -167,6 +208,7 @@ for target_triple in $TARGET_TRIPLES; do
         -DLIBCXXABI_LIBDIR_SUFFIX="" \
         -DCMAKE_C_FLAGS_INIT="$init_flags" \
         -DCMAKE_CXX_FLAGS_INIT="$init_flags" \
+        $additional_cmake_flags \
         ..
 
     cmake --build . ${CORES:+-j${CORES}}

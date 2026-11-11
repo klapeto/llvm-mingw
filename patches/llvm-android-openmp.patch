@@ -1,0 +1,28 @@
+diff --git a/llvm-project/openmp/runtime/src/kmp_i18n.cpp b/llvm-project/openmp/runtime/src/kmp_i18n.cpp
+index a164aa180dd4..6800f2f73c79 100644
+--- a/llvm-project/openmp/runtime/src/kmp_i18n.cpp
++++ b/llvm-project/openmp/runtime/src/kmp_i18n.cpp
+@@ -75,6 +75,23 @@ void __kmp_i18n_catopen() {
+ 
+ #include <nl_types.h>
+ 
++#if defined(__ANDROID__) && __ANDROID_API__ < 26
++// Bionic only declares catopen/catgets/catclose from API 26 (and implements
++// them as no-ops). Act as if there is no message catalog, so the built-in
++// English messages are used, like the NDK's libomp does.
++static nl_catd __kmp_catopen(const char *, int) { return (nl_catd)(-1); }
++static char *__kmp_catgets(nl_catd, int, int, const char *message) {
++  return const_cast<char *>(message);
++}
++static int __kmp_catclose(nl_catd) {
++  errno = EBADF;
++  return -1;
++}
++#define catopen __kmp_catopen
++#define catgets __kmp_catgets
++#define catclose __kmp_catclose
++#endif
++
+ #define KMP_I18N_NULLCAT ((nl_catd)(-1))
+ static nl_catd cat = KMP_I18N_NULLCAT; // !!! Shall it be volatile?
+ static char const *name =

@@ -19,6 +19,8 @@ set -e
 CFGUARD_CFLAGS="-mguard=cf"
 DEBUG_SYMBOLS=0
 BUILD_TYPE=Release
+ADDITIONAL_CFLAGS=""
+ADDITIONAL_CFLAGS_SCRIPT=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -32,14 +34,30 @@ while [ $# -gt 0 ]; do
         DEBUG_SYMBOLS=1
         BUILD_TYPE=RelWithDebInfo
         ;;
+    --additional-cflags=*)
+        ADDITIONAL_CFLAGS="${1#*=}"
+        ;;
+    --additional-cflags-script=*)
+        ADDITIONAL_CFLAGS_SCRIPT="${1#*=}"
+        ;;
     *)
         PREFIX="$1"
         ;;
     esac
     shift
 done
+
+if [ -n "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+    if [ ! -x "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+        echo "$ADDITIONAL_CFLAGS_SCRIPT is not executable"
+        exit 1
+    fi
+    # The builds below change directory
+    ADDITIONAL_CFLAGS_SCRIPT="$(cd "$(dirname "$ADDITIONAL_CFLAGS_SCRIPT")" && pwd)/$(basename "$ADDITIONAL_CFLAGS_SCRIPT")"
+fi
+
 if [ -z "$PREFIX" ]; then
-    echo "$0 [--enable-cfguard|--disable-cfguard] dest"
+    echo "$0 [--enable-cfguard|--disable-cfguard] [--additional-cflags=flags] [--additional-cflags-script=script] dest"
     exit 1
 fi
 
@@ -89,18 +107,18 @@ for target_triple in $TARGET_TRIPLES; do
       *-linux-*)
           target_system=Linux
           if [ "$DEBUG_SYMBOLS" = "0" ]; then
-            init_flags=""
+            init_flags="$ADDITIONAL_CFLAGS"
           else
-            init_flags="-g3"
+            init_flags="-g3 $ADDITIONAL_CFLAGS"
           fi
           sysroot="$PREFIX/$target_triple"
           ;;
       *-w64-mingw32*)
           target_system=Windows
           if [ "$DEBUG_SYMBOLS" = "0" ]; then
-            init_flags="$CFGUARD_CFLAGS"
+            init_flags="$CFGUARD_CFLAGS $ADDITIONAL_CFLAGS"
           else
-            init_flags="$CFGUARD_CFLAGS -g3 -gcodeview"
+            init_flags="$CFGUARD_CFLAGS -g3 -gcodeview $ADDITIONAL_CFLAGS"
           fi
           sysroot=""
           ;;
@@ -122,6 +140,20 @@ for target_triple in $TARGET_TRIPLES; do
     cd build-$target_triple
     [ -n "$NO_RECONF" ] || rm -rf CMake*
 
+    if [ -n "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+        init_flags="$init_flags $("$ADDITIONAL_CFLAGS_SCRIPT" "$target_triple")"
+    fi
+
+    additional_cmake_flags=""
+    case $target_triple in
+    *-android*)
+        # LLVM's CMake checks ANDROID_NATIVE_API_LEVEL, e.g. for _FILE_OFFSET_BITS=64 on 32-bit before API 24
+        android_api=${target_triple##*-android}
+        android_api=${android_api#eabi}
+        additional_cmake_flags="-DANDROID=ON${android_api:+ -DANDROID_NATIVE_API_LEVEL=$android_api}"
+        ;;
+    esac
+
     cmake \
         ${CMAKE_GENERATOR+-G} "$CMAKE_GENERATOR" \
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -139,6 +171,7 @@ for target_triple in $TARGET_TRIPLES; do
         -DLIBOMP_ENABLE_SHARED=TRUE \
         -DCMAKE_C_FLAGS_INIT="$init_flags" \
         -DCMAKE_CXX_FLAGS_INIT="$init_flags" \
+        $additional_cmake_flags \
         $CMAKEFLAGS \
         ..
     cmake --build . ${CORES:+-j${CORES}}

@@ -23,6 +23,8 @@ set -e
 CFGUARD_FLAGS="--enable-cfguard"
 DEBUG_SYMBOLS=0
 USE_CFLAGS="-O2 -g"
+ADDITIONAL_CFLAGS=""
+ADDITIONAL_CFLAGS_SCRIPT=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -44,15 +46,31 @@ while [ $# -gt 0 ]; do
     --debug-symbols)
         DEBUG_SYMBOLS=1
         ;;
+    --additional-cflags=*)
+        ADDITIONAL_CFLAGS="${1#*=}"
+        ;;
+    --additional-cflags-script=*)
+        ADDITIONAL_CFLAGS_SCRIPT="${1#*=}"
+        ;;
     *)
         PREFIX="$1"
         ;;
     esac
     shift
 done
+
+if [ -n "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+    if [ ! -x "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+        echo "$ADDITIONAL_CFLAGS_SCRIPT is not executable"
+        exit 1
+    fi
+    # The builds below change directory
+    ADDITIONAL_CFLAGS_SCRIPT="$(cd "$(dirname "$ADDITIONAL_CFLAGS_SCRIPT")" && pwd)/$(basename "$ADDITIONAL_CFLAGS_SCRIPT")"
+fi
+
 if [ -z "$CHECKOUT_ONLY" ]; then
     if [ -z "$PREFIX" ]; then
-        echo "$0 [--skip-include-triplet-prefix] [--with-default-win32-winnt=0x601] [--with-default-msvcrt=ucrt] [--enable-cfguard|--disable-cfguard] dest"
+        echo "$0 [--skip-include-triplet-prefix] [--with-default-win32-winnt=0x601] [--with-default-msvcrt=ucrt] [--enable-cfguard|--disable-cfguard] [--additional-cflags=flags] [--additional-cflags-script=script] dest"
         exit 1
     fi
 
@@ -162,7 +180,13 @@ for arch in $ARCHS; do
     esac
     FLAGS="$FLAGS --with-default-msvcrt=$DEFAULT_MSVCRT"
     FLAGS="$FLAGS --enable-silent-rules"
-    ../configure --host=$arch-w64-mingw32 --prefix="$PREFIX/$arch-w64-mingw32" $FLAGS $CFGUARD_FLAGS $CRT_CONFIG_FLAGS CFLAGS="$USE_CFLAGS" CXXFLAGS="$USE_CFLAGS"
+
+    this_cflags="$USE_CFLAGS $ADDITIONAL_CFLAGS"
+    if [ -n "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+        this_cflags="$this_cflags $("$ADDITIONAL_CFLAGS_SCRIPT" "$arch-w64-mingw32")"
+    fi
+
+    ../configure --host=$arch-w64-mingw32 --prefix="$PREFIX/$arch-w64-mingw32" $FLAGS $CFGUARD_FLAGS $CRT_CONFIG_FLAGS CFLAGS="$this_cflags" CXXFLAGS="$this_cflags"
     $MAKE -j$CORES
     $MAKE install
     cd ..

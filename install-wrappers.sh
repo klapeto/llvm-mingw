@@ -144,6 +144,13 @@ cp wrappers/mingw32-common.cfg $PREFIX/bin
 cp wrappers/linux-common.cfg $PREFIX/bin
 for target_triple in $TARGET_TRIPLES; do
     case $target_triple in
+    *-linux-android*)
+        printf -- '-target %s\n@linux-common.cfg\n' "$target_triple" > "$PREFIX/bin/$target_triple.cfg"
+        arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
+        target_env=$(expr match "$target_triple" '.*-.*-\(.*\)')
+        ln -sf $target_triple.cfg $PREFIX/bin/$arch-unknown-linux-$target_env.cfg
+        ln -sf $target_triple.cfg $PREFIX/bin/$arch-pc-linux-$target_env.cfg
+        ;;
     *-linux-*)
         arch=$(expr match "$target_triple" '\(.*\)-.*-.*')
         target_env=$(expr match "$target_triple" '.*-.*-\(.*\)')

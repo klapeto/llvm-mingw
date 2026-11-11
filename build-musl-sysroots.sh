@@ -27,7 +27,7 @@ fi
 PREFIX="$1"
 
 case $TARGET_TRIPLES in
-*-linux-musl)
+*-linux-musl*)
     ;;
 *)
     echo "Nothing to build for musl sysroots"
@@ -89,6 +89,12 @@ export PATH="$PREFIX/bin:$PATH"
 unset CC
 
 for target_triple in $TARGET_TRIPLES; do
+    case $target_triple in
+    *-android*)
+        # build-android-sysroots.sh creates these from the NDK (bionic has its own kernel headers)
+        continue
+        ;;
+    esac
     cd linux
     [ -z "$CLEAN" ] || $MAKE clean
 
@@ -115,6 +121,7 @@ for target_triple in $TARGET_TRIPLES; do
         ;;
     *)
         linux_arch=""
+        cd ..
         continue
         ;;
     esac

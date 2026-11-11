@@ -36,11 +36,11 @@ fi
 ARCH="${TARGET%%-*}"
 TARGET_OS="${TARGET##*-}"
 case $TARGET in
-*-linux-gnu*)
+*-linux-gnu*|*-linux-android*)
     case $ARCH in
     i[63]86) M=elf_i386    ;;
     x86_64)  M=elf_x86_64  ;;
-    arm)     M=armelf      ;;
+    arm*)    M=armelf      ;;
     aarch64) M=aarch64elf  ;;
     riscv64) M=elf64lriscv ;;
     esac

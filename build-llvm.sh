@@ -157,6 +157,7 @@ if [ -n "$SYNC" ] || [ -n "$CHECKOUT" ]; then
     fi
     cd ..
     patch -f -p1 < patches/llvm-musl.patch
+    patch -f -p1 < patches/llvm-android-openmp.patch
 fi
 
 [ -z "$CHECKOUT_ONLY" ] || exit 0

@@ -23,6 +23,8 @@ ENABLE_CFGUARD=1
 CFGUARD_CFLAGS="-mguard=cf"
 DEBUG_SYMBOLS=0
 BUILD_TYPE=Release
+ADDITIONAL_CFLAGS=""
+ADDITIONAL_CFLAGS_SCRIPT=""
 
 while [ $# -gt 0 ]; do
     if [ "$1" = "--build-sanitizers" ]; then
@@ -45,6 +47,10 @@ while [ $# -gt 0 ]; do
     elif [ "$1" = "--disable-cfguard" ]; then
         CFGUARD_CFLAGS=
         ENABLE_CFGUARD=
+    elif [ "${1#--additional-cflags=}" != "$1" ]; then
+        ADDITIONAL_CFLAGS="${1#*=}"
+    elif [ "${1#--additional-cflags-script=}" != "$1" ]; then
+        ADDITIONAL_CFLAGS_SCRIPT="${1#*=}"
     elif [ "$1" = "--native" ]; then
         NATIVE=1
         SRC_DIR=..
@@ -53,8 +59,18 @@ while [ $# -gt 0 ]; do
     fi
     shift
 done
+
+if [ -n "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+    if [ ! -x "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+        echo "$ADDITIONAL_CFLAGS_SCRIPT is not executable"
+        exit 1
+    fi
+    # The builds below change directory
+    ADDITIONAL_CFLAGS_SCRIPT="$(cd "$(dirname "$ADDITIONAL_CFLAGS_SCRIPT")" && pwd)/$(basename "$ADDITIONAL_CFLAGS_SCRIPT")"
+fi
+
 if [ -z "$PREFIX" ]; then
-    echo "$0 [--build-sanitizers] [--enable-cfguard|--disable-cfguard] [--native] dest"
+    echo "$0 [--build-sanitizers] [--enable-cfguard|--disable-cfguard] [--native] [--additional-cflags=flags] [--additional-cflags-script=script] dest"
     exit 1
 fi
 if [ -n "$SANITIZERS" ] && [ -n "$ENABLE_CFGUARD" ]; then
@@ -152,6 +168,12 @@ if [ -n "$NATIVE" ]; then
 fi
 
 for target_triple in $TARGET_TRIPLES; do
+    case $target_triple in
+    *-android*)
+        # Android sanitizers need the NDK's own setup; only the builtins are built for it
+        [ -z "$SANITIZERS" ] || continue
+        ;;
+    esac
     [ -z "$CLEAN" ] || rm -rf build-$target_triple$BUILD_SUFFIX
     mkdir -p build-$target_triple$BUILD_SUFFIX
     cd build-$target_triple$BUILD_SUFFIX
@@ -163,9 +185,9 @@ for target_triple in $TARGET_TRIPLES; do
     *-linux-*)
         target_system=Linux
         if [ "$DEBUG_SYMBOLS" = "0" ]; then
-            init_flags=""
+            init_flags="$ADDITIONAL_CFLAGS"
         else
-            init_flags="-g3"
+            init_flags="-g3 $ADDITIONAL_CFLAGS"
         fi
         compiler_target=$target_arch-linux-$target_env
         sysroot="$PREFIX/$target_triple"
@@ -173,9 +195,9 @@ for target_triple in $TARGET_TRIPLES; do
     *-w64-mingw32*)
         target_system=Windows
         if [ "$DEBUG_SYMBOLS" = "0" ]; then
-            init_flags="$CFGUARD_CFLAGS"
+            init_flags="$CFGUARD_CFLAGS $ADDITIONAL_CFLAGS"
         else
-            init_flags="$CFGUARD_CFLAGS -g3 -gcodeview"
+            init_flags="$CFGUARD_CFLAGS -g3 -gcodeview $ADDITIONAL_CFLAGS"
         fi
         compiler_target=$target_arch-w64-windows-gnu
         sysroot=""
@@ -188,6 +210,24 @@ for target_triple in $TARGET_TRIPLES; do
         ;;
     *)
         enable_musl=OFF
+        ;;
+    esac
+
+    if [ -n "$ADDITIONAL_CFLAGS_SCRIPT" ]; then
+        init_flags="$init_flags $("$ADDITIONAL_CFLAGS_SCRIPT" "$target_triple")"
+    fi
+
+    additional_cmake_flags=""
+    case $target_triple in
+    *-android*)
+        # LLVM's CMake checks ANDROID_NATIVE_API_LEVEL, e.g. for _FILE_OFFSET_BITS=64 on 32-bit before API 24
+        android_api=${target_triple##*-android}
+        android_api=${android_api#eabi}
+        additional_cmake_flags="-DANDROID=ON${android_api:+ -DANDROID_NATIVE_API_LEVEL=$android_api}"
+        # Install to lib/<normalized triple>/libclang_rt.builtins.a (e.g. aarch64-unknown-linux-android21) instead
+        # of lib/linux/libclang_rt.builtins-<arch>-android.a, so the API levels (e.g. android21 and android29) do
+        # not overwrite each other's builtins. Clang falls back to the highest API level <= the target's.
+        additional_cmake_flags="$additional_cmake_flags -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON"
         ;;
     esac
 
@@ -215,6 +255,7 @@ for target_triple in $TARGET_TRIPLES; do
         -DSANITIZER_CXX_ABI=libc++ \
         -DCMAKE_C_FLAGS_INIT="$init_flags" \
         -DCMAKE_CXX_FLAGS_INIT="$init_flags" \
+        $additional_cmake_flags \
         $SRC_DIR
     cmake --build . ${CORES:+-j${CORES}}
 

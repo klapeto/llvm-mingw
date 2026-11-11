@@ -22,6 +22,8 @@ MINGW_ARGS=""
 CFGUARD_ARGS="--enable-cfguard"
 HOST_ARGS=""
 DEBUG_SYMBOLS=""
+ADDITIONAL_CFLAGS=""
+ADDITIONAL_CFLAGS_SCRIPT=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -109,6 +111,12 @@ while [ $# -gt 0 ]; do
     --debug-symbols)
         DEBUG_SYMBOLS="--debug-symbols"
         ;;
+    --additional-cflags=*)
+        ADDITIONAL_CFLAGS="${1#*=}"
+        ;;
+    --additional-cflags-script=*)
+        ADDITIONAL_CFLAGS_SCRIPT="${1#*=}"
+        ;;
     *)
         if [ -n "$PREFIX" ]; then
             if [ -n "$PREFIX_PGO" ]; then
@@ -124,7 +132,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 if [ -z "$PREFIX" ]; then
-    echo "$0 [--host-clang[=clang]] [--enable-asserts] [--disable-dylib] [--with-clang] [--use-linker=linker] [--thinlto] [--full-llvm] [--disable-lldb] [--disable-lldb-mi] [--disable-clang-tools-extra] [--host=triple] [--with-default-win32-winnt=0x601] [--with-default-msvcrt=ucrt] [--enable-cfguard|--disable-cfguard] [--no-runtimes] [--llvm-only] [--no-tools] [--wipe-runtimes] [--clean-runtimes] [--stage1] [--profile[=type]] [--pgo[=profile]] [--full-pgo[=type]] dest [pgo-dest]"
+    echo "$0 [--host-clang[=clang]] [--enable-asserts] [--disable-dylib] [--with-clang] [--use-linker=linker] [--thinlto] [--full-llvm] [--disable-lldb] [--disable-lldb-mi] [--disable-clang-tools-extra] [--host=triple] [--with-default-win32-winnt=0x601] [--with-default-msvcrt=ucrt] [--enable-cfguard|--disable-cfguard] [--no-runtimes] [--llvm-only] [--no-tools] [--wipe-runtimes] [--clean-runtimes] [--stage1] [--profile[=type]] [--pgo[=profile]] [--full-pgo[=type]] [--additional-cflags=flags] [--additional-cflags-script=script] dest [pgo-dest]"
     exit 1
 fi
 if [ -n "$PREFIX_PGO" ] && [ -z "$PGO" ] && [ -z "$FULL_PGO" ]; then
@@ -148,10 +156,10 @@ if [ -n "$FULL_PGO" ]; then
         echo Must provide a second destination for a PGO build
         exit 1
     fi
-    ./build-all.sh "$PREFIX" --stage1 $LLVM_ARGS $MINGW_ARGS $CFGUARD_ARGS $DEBUG_SYMBOLS
+    ./build-all.sh "$PREFIX" --stage1 $LLVM_ARGS $MINGW_ARGS $CFGUARD_ARGS $DEBUG_SYMBOLS ${ADDITIONAL_CFLAGS:+"--additional-cflags=$ADDITIONAL_CFLAGS"} ${ADDITIONAL_CFLAGS_SCRIPT:+"--additional-cflags-script=$ADDITIONAL_CFLAGS_SCRIPT"}
     unset COMPILER_LAUNCHER
-    ./build-all.sh "$PREFIX" --profile$INSTRUMENTATION $LLVM_ARGS $DEBUG_SYMBOLS
-    ./build-all.sh "$PREFIX" "$PREFIX_PGO" --thinlto --pgo --llvm-only $LLVM_ARGS $DEBUG_SYMBOLS
+    ./build-all.sh "$PREFIX" --profile$INSTRUMENTATION $LLVM_ARGS $DEBUG_SYMBOLS ${ADDITIONAL_CFLAGS:+"--additional-cflags=$ADDITIONAL_CFLAGS"} ${ADDITIONAL_CFLAGS_SCRIPT:+"--additional-cflags-script=$ADDITIONAL_CFLAGS_SCRIPT"}
+    ./build-all.sh "$PREFIX" "$PREFIX_PGO" --thinlto --pgo --llvm-only $LLVM_ARGS $DEBUG_SYMBOLS ${ADDITIONAL_CFLAGS:+"--additional-cflags=$ADDITIONAL_CFLAGS"} ${ADDITIONAL_CFLAGS_SCRIPT:+"--additional-cflags-script=$ADDITIONAL_CFLAGS_SCRIPT"}
     # If one already has a usable profile, one could also do the following
     # two steps only:
     # ./build-all.sh "$PREFIX" --stage1 --llvm-only
@@ -237,11 +245,12 @@ fi
 if [ -n "$CLEAN_RUNTIMES" ]; then
     export CLEAN=1
 fi
-./build-mingw-w64.sh $PREFIX $MINGW_ARGS $CFGUARD_ARGS $DEBUG_SYMBOLS
+./build-mingw-w64.sh $PREFIX $MINGW_ARGS $CFGUARD_ARGS $DEBUG_SYMBOLS ${ADDITIONAL_CFLAGS:+"--additional-cflags=$ADDITIONAL_CFLAGS"} ${ADDITIONAL_CFLAGS_SCRIPT:+"--additional-cflags-script=$ADDITIONAL_CFLAGS_SCRIPT"}
 ./build-musl-sysroots.sh $PREFIX
 ./build-gnu-sysroots.sh $PREFIX
-./build-compiler-rt.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS
-./build-libcxx.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS
-./build-mingw-w64-libraries.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS
+./build-android-sysroots.sh $PREFIX
+./build-compiler-rt.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS ${ADDITIONAL_CFLAGS:+"--additional-cflags=$ADDITIONAL_CFLAGS"} ${ADDITIONAL_CFLAGS_SCRIPT:+"--additional-cflags-script=$ADDITIONAL_CFLAGS_SCRIPT"}
+./build-libcxx.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS ${ADDITIONAL_CFLAGS:+"--additional-cflags=$ADDITIONAL_CFLAGS"} ${ADDITIONAL_CFLAGS_SCRIPT:+"--additional-cflags-script=$ADDITIONAL_CFLAGS_SCRIPT"}
+./build-mingw-w64-libraries.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS ${ADDITIONAL_CFLAGS:+"--additional-cflags=$ADDITIONAL_CFLAGS"} ${ADDITIONAL_CFLAGS_SCRIPT:+"--additional-cflags-script=$ADDITIONAL_CFLAGS_SCRIPT"}
 ./build-compiler-rt.sh $PREFIX --build-sanitizers # CFGUARD_ARGS intentionally omitted
-./build-openmp.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS
+./build-openmp.sh $PREFIX $CFGUARD_ARGS $DEBUG_SYMBOLS ${ADDITIONAL_CFLAGS:+"--additional-cflags=$ADDITIONAL_CFLAGS"} ${ADDITIONAL_CFLAGS_SCRIPT:+"--additional-cflags-script=$ADDITIONAL_CFLAGS_SCRIPT"}
