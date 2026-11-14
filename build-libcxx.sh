@@ -171,6 +171,8 @@ for target_triple in $TARGET_TRIPLES; do
         ;;
     esac
 
+    # Atomic helpers come from the compiler-rt builtins; don't let libc++ link
+    # a libatomic that happens to exist in the sysroot.
     cmake \
         ${CMAKE_GENERATOR+-G} "$CMAKE_GENERATOR" \
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -190,6 +192,7 @@ for target_triple in $TARGET_TRIPLES; do
         -DLIBUNWIND_ENABLE_STATIC=$target_static \
         -DLIBCXX_HAS_MUSL_LIBC=$enable_musl \
         -DLIBCXX_USE_COMPILER_RT=ON \
+        -DLIBCXX_HAS_ATOMIC_LIB=OFF \
         -DLIBCXX_ENABLE_SHARED=$target_shared \
         -DLIBCXX_ENABLE_STATIC=$target_static \
         -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=TRUE \
